@@ -1,0 +1,19 @@
+{
+  "name": "bookhub-reviews-service",
+  "version": "1.0.0",
+  "description": "Reviews microservice for BookHub",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^7.0.3",
+    "cors": "^2.8.5",
+    "helmet": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}

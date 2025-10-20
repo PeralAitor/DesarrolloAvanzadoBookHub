@@ -1,0 +1,57 @@
+/* src/styles/global.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-glass;
+  }
+  
+  .gradient-bg {
+    @apply bg-gradient-to-br from-blue-500 to-blue-600;
+  }
+  
+  .btn-primary {
+    @apply gradient-bg text-white px-6 py-3 rounded-xl font-semibold 
+           shadow-lg hover:shadow-xl transform hover:scale-105 
+           transition-all duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold 
+           border border-blue-200 shadow-sm hover:shadow-md 
+           transform hover:scale-105 transition-all duration-200 
+           hover:bg-blue-50;
+  }
+  
+  .card-hover {
+    @apply transform transition-all duration-300 hover:scale-105 
+           hover:shadow-xl cursor-pointer;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
