@@ -1,76 +1,109 @@
 // src/components/BookCard.jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const BookCard = ({ book }) => {
-  const rating = book.average_rating || 0;
-  
+  // helper para extraer aliases
+  const get = (o, ...keys) => {
+    for (const k of keys) {
+      if (o == null) continue;
+      if (o[k] !== undefined && o[k] !== null) return o[k];
+    }
+    return undefined;
+  };
+
+  const id = String(get(book, 'id', '_id', 'bookId', 'isbn') || '');
+  const title = get(book, 'title', 'name', 'titulo', 'nombre') || 'Título desconocido';
+  const author = get(book, 'author', 'authors', 'autor', 'authorName') || 'Autor desconocido';
+  const createdRaw = get(book, 'createdAt', 'created_at', 'fecha', 'fecha_creacion') || get(book, 'date', null);
+  const created = createdRaw ? new Date(createdRaw).toLocaleDateString() : 'Fecha desconocida';
+  const genre = get(book, 'genre', 'genero', 'categories', 'category', 'tags') || 'Sin género';
+
+  const initialAvg = get(book, 'average_rating', 'avgRating', 'rating') || 0;
+  const [avg, setAvg] = useState(initialAvg);
+  const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // si el objeto ya trae rating y count, úsalo si existe
+    if (initialAvg && initialAvg > 0 && (book.reviewsCount || book.ratingCount)) {
+      setAvg(initialAvg);
+      setCount(book.reviewsCount || book.ratingCount || 0);
+      return;
+    }
+
+    if (!id) {
+      setAvg(0);
+      setCount(0);
+      return;
+    }
+
+    let mounted = true;
+    const fetchAvg = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/reviews?bookId=${encodeURIComponent(id)}`);
+        if (!res.ok) {
+          setAvg(0);
+          setCount(0);
+        } else {
+          const data = await res.json();
+          const reviews = Array.isArray(data) ? data : (data.reviews || []);
+          const values = reviews.map(r => Number(r.calificación ?? r.rating ?? 0)).filter(n => !isNaN(n) && n > 0);
+          if (!mounted) return;
+          if (values.length === 0) {
+            setAvg(0);
+            setCount(0);
+          } else {
+            const average = values.reduce((a, b) => a + b, 0) / values.length;
+            setAvg(Math.round(average * 10) / 10);
+            setCount(values.length);
+          }
+        }
+      } catch (err) {
+        if (mounted) {
+          setAvg(0);
+          setCount(0);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchAvg();
+    return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const renderStars = (val) => {
+    const full = Math.round(val);
+    return '★'.repeat(full) + '☆'.repeat(5 - full);
+  };
+
   return (
-    <Link 
-      to={`/book/${book.id}`} 
-      className="glass-card rounded-2xl p-6 card-hover group animate-fade-in"
-    >
-      <div className="flex space-x-4">
-        {/* Portada del libro */}
-        <div className="flex-shrink-0 relative">
-          <div className="w-20 h-28 bg-gradient-to-br from-primary-100 to-blue-100 rounded-xl 
-                        flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
-            {book.portada_url ? (
-              <img 
-                src={book.portada_url} 
-                alt={book.titulo} 
-                className="w-full h-full object-cover rounded-xl"
-              />
-            ) : (
-              <div className="text-center">
-                <span className="text-primary-400 text-2xl font-bold">📚</span>
-                <span className="text-primary-400 text-xs block mt-1">Sin portada</span>
-              </div>
-            )}
+    <Link to={id ? `/books/${id}` : '#'} className="block no-underline text-current">
+      <article className="bg-white rounded shadow p-4 h-full flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div>
+          <h3 className="font-semibold text-lg line-clamp-2">{title}</h3>
+          <p className="text-sm text-gray-500">{Array.isArray(author) ? author.join(', ') : author}</p>
+
+          <div className="mt-2 text-xs text-gray-500">
+            <span className="mr-3">Creado: <span className="font-medium text-gray-700">{created}</span></span>
+            <span>Género: <span className="font-medium text-gray-700">{Array.isArray(genre) ? genre.join(', ') : genre}</span></span>
           </div>
-          <div className="absolute -top-2 -right-2 gradient-bg text-white text-xs 
-                        font-bold px-2 py-1 rounded-full shadow-lg">
-            {rating.toFixed(1)}
-          </div>
+
+          {book.description || book.sinopsis ? (
+            <p className="mt-3 text-sm text-gray-700 line-clamp-3">{book.description || book.sinopsis}</p>
+          ) : null}
         </div>
-        
-        {/* Información del libro */}
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-gray-800 truncate group-hover:text-primary-600 transition-colors">
-            {book.titulo}
-          </h3>
-          <p className="text-gray-600 text-sm mb-2">{book.autor}</p>
-          
-          {/* Rating */}
-          <div className="flex items-center mb-3">
-            <div className="flex">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <svg
-                  key={star}
-                  className={`w-4 h-4 ${
-                    star <= rating ? 'text-yellow-400' : 'text-gray-300'
-                  }`}
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              ))}
-            </div>
-            <span className="text-gray-500 text-sm ml-2">
-              ({book.review_count || 0})
-            </span>
+
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-yellow-500 font-medium">
+            {loading ? '—' : (avg ? `${renderStars(avg)} ${avg}` : 'Sin valoraciones')}
           </div>
-          
-          {/* Género */}
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary-50 
-                        border border-primary-200">
-            <span className="text-primary-700 text-xs font-medium">
-              {book.genero || 'Sin género'}
-            </span>
-          </div>
+          <div className="text-xs text-gray-500">{count > 0 ? `(${count}) valoraciones` : '0 valoraciones'}</div>
         </div>
-      </div>
+      </article>
     </Link>
   );
 };

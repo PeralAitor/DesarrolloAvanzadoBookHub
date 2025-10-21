@@ -1,172 +1,316 @@
-// src/pages/UserProfile.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+const normalizeReview = (r) => ({
+  id: r._id || r.id || r._rid,
+  bookId: r.libro_id || r.bookId || r.book_id || r.book,
+  bookTitle: r.bookTitle || r.title || r.bookTitle || '',
+  rating: r.calificación ?? r.rating ?? r.rate ?? 0,
+  text: r.comentario ?? r.text ?? r.comment ?? '',
+  createdAt: r.fecha || r.createdAt || r.date || null,
+  raw: r
+});
 
 const UserProfile = ({ user, onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    nombre: ''
-  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [formData, setFormData] = useState({ nombre: '', email: '', password: '' });
+
+  const [recentReviews, setRecentReviews] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ rating: 5, text: '' });
+  const [actionError, setActionError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    if (savedUser && !user) {
+      try { onLogin(JSON.parse(savedUser), token); } catch {}
+    }
+
+    const fetchUserReviews = async () => {
+      if (!user) return;
+      setError(null);
+      try {
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        // gateway supports /api/reviews?user=...
+        const res = await fetch(`/api/reviews?user=${encodeURIComponent(user._id || user.id || user.email)}`, { headers });
+        if (!res.ok) {
+          const body = await res.json().catch(()=>({}));
+          setError(body.error || 'No se pudieron obtener las reseñas');
+          return;
+        }
+        const body = await res.json();
+        // body may be array or { reviews: [...] }
+        const reviewsArray = Array.isArray(body) ? body : (Array.isArray(body.reviews) ? body.reviews : []);
+        // normalize and enrich titles
+        const normalized = await Promise.all(reviewsArray.map(async (r) => {
+          const nr = normalizeReview(r);
+          if (nr.bookTitle) return nr;
+          const bookId = nr.bookId;
+          if (!bookId) return nr;
+          try {
+            const b = await fetch(`/api/books/${encodeURIComponent(bookId)}`);
+            if (!b.ok) return nr;
+            const bd = await b.json();
+            nr.bookTitle = bd.title || bd.name || bd.titulo || nr.bookTitle || 'Libro';
+            return nr;
+          } catch {
+            return nr;
+          }
+        }));
+        setRecentReviews(normalized.slice(0, 50));
+      } catch (err) {
+        setError('Error de red al cargar reseñas.');
+      }
+    };
+
+    fetchUserReviews();
+  }, [user, onLogin]);
+
+  const startEdit = (review) => {
+    setEditingId(review.id);
+    setEditForm({ rating: review.rating || 5, text: review.text || '' });
+    setActionError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm({ rating: 5, text: '' });
+    setActionError(null);
+  };
+
+  const submitEdit = async (e) => {
+    e.preventDefault();
+    if (!editingId) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/reviews/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ rating: editForm.rating, text: editForm.text })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionError(data.error || 'Error actualizando reseña');
+        setActionLoading(false);
+        return;
+      }
+      const updated = normalizeReview(data);
+      // keep bookTitle if we had it
+      const prev = recentReviews.find(r => String(r.id) === String(updated.id)) || {};
+      if (!updated.bookTitle && prev.bookTitle) updated.bookTitle = prev.bookTitle;
+      setRecentReviews(prevArr => prevArr.map(r => String(r.id) === String(updated.id) ? updated : r));
+      setEditingId(null);
+    } catch (err) {
+      setActionError('Error de red al actualizar reseña');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const deleteReview = async (id) => {
+    setActionError(null);
+    if (!confirm('¿Deseas eliminar esta reseña?')) return;
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/reviews/${id}`, {
+        method: 'DELETE',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(()=>({}));
+        setActionError(body.error || 'Error eliminando reseña');
+        setActionLoading(false);
+        return;
+      }
+      setRecentReviews(prev => prev.filter(r => String(r.id) !== String(id)));
+    } catch (err) {
+      setActionError('Error de red al eliminar reseña');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const mockUser = {
-      _id: '1',
-      nombre: formData.nombre || 'Usuario',
-      email: formData.email,
-      role: 'user'
-    };
-    const mockToken = 'mock-jwt-token';
-    onLogin(mockUser, mockToken);
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    const url = isLogin ? '/api/auth/login' : '/api/auth/register';
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data.error || data.message || 'Error en la petición';
+        setError(msg);
+        setLoading(false);
+        return;
+      }
+
+      if (data.token) localStorage.setItem('token', data.token);
+      if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+
+      if (onLogin) onLogin(data.user || null, data.token || localStorage.getItem('token'));
+
+      setSuccess(isLogin ? 'Inicio de sesión correcto.' : 'Registro completado correctamente.');
+      setLoading(false);
+      navigate('/profile');
+    } catch (err) {
+      setError('Error de red. Intenta de nuevo.');
+      setLoading(false);
+    }
   };
 
   if (user) {
     return (
-      <div className="max-w-4xl mx-auto animate-fade-in">
-        <h1 className="text-3xl font-bold text-gradient mb-8">Mi Perfil</h1>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Información del usuario */}
-          <div className="lg:col-span-2">
-            <div className="glass-card rounded-2xl p-8">
-              <div className="flex items-center space-x-6 mb-8">
-                <div className="w-20 h-20 gradient-bg rounded-2xl flex items-center justify-center shadow-lg">
-                  <span className="text-white text-2xl font-bold">
-                    {user.nombre.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">{user.nombre}</h2>
-                  <p className="text-gray-600">{user.email}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">Nombre completo</label>
-                  <p className="text-lg font-semibold text-gray-800">{user.nombre}</p>
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
-                  <p className="text-lg font-semibold text-gray-800">{user.email}</p>
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">Rol</label>
-                  <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary-100 border border-primary-200">
-                    <span className="text-primary-700 font-medium capitalize">{user.role}</span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">Miembro desde</label>
-                  <p className="text-lg font-semibold text-gray-800">Enero 2024</p>
-                </div>
-              </div>
-            </div>
+      <div className="max-w-3xl mx-auto bg-white p-6 rounded shadow">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-xl font-bold">
+            {(user.nombre || user.name || 'U').slice(0,2).toUpperCase()}
           </div>
-
-          {/* Stats rápidas */}
-          <div className="space-y-6">
-            <div className="glass-card rounded-2xl p-6 text-center">
-              <div className="text-2xl font-bold text-gradient mb-1">12</div>
-              <div className="text-gray-600">Libros Leídos</div>
-            </div>
-            <div className="glass-card rounded-2xl p-6 text-center">
-              <div className="text-2xl font-bold text-gradient mb-1">8</div>
-              <div className="text-gray-600">Reseñas Escritas</div>
-            </div>
-            <div className="glass-card rounded-2xl p-6 text-center">
-              <div className="text-2xl font-bold text-gradient mb-1">4.2</div>
-              <div className="text-gray-600">Rating Promedio</div>
-            </div>
+          <div>
+            <h2 className="text-xl font-semibold">{user.nombre || user.name || 'Usuario'}</h2>
+            <p className="text-sm text-gray-500">{user.email}</p>
           </div>
+        </div>
+
+        <div className="mt-6">
+          <h3 className="font-medium mb-2">Reseñas recientes</h3>
+
+          {actionError && <div className="mb-3 p-2 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{actionError}</div>}
+
+          {recentReviews.length === 0 ? (
+            <p className="text-sm text-gray-500">No hay reseñas recientes.</p>
+          ) : (
+            <ul className="space-y-3">
+              {recentReviews.map(r => {
+                const isEditing = String(editingId) === String(r.id);
+                return (
+                  <li key={r.id} className="border rounded p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium">{r.bookTitle || 'Libro'}</div>
+                        <div className="text-xs text-gray-500">{r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</div>
+                      </div>
+                      <div className="text-sm text-yellow-500">{'★'.repeat(Math.round(r.rating || 0))} <span className="text-gray-700 ml-2">{r.rating || 0}</span></div>
+                    </div>
+
+                    {!isEditing ? (
+                      <>
+                        <p className="mt-2 text-gray-700 text-sm">{r.text}</p>
+                        <div className="mt-3 flex gap-2">
+                          <button onClick={() => startEdit(r)} className="text-sm text-blue-600 underline">Editar</button>
+                          <button onClick={() => deleteReview(r.id)} className="text-sm text-red-600 underline">Eliminar</button>
+                        </div>
+                      </>
+                    ) : (
+                      <form onSubmit={submitEdit} className="mt-3 space-y-2">
+                        <div>
+                          <label className="block text-xs mb-1">Puntuación</label>
+                          <select value={editForm.rating} onChange={(e)=>setEditForm({...editForm, rating: Number(e.target.value)})} className="border px-2 py-1 rounded">
+                            {[5,4,3,2,1].map(n => <option key={n} value={n}>{n} ★</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Reseña</label>
+                          <textarea value={editForm.text} onChange={(e)=>setEditForm({...editForm, text: e.target.value})} className="w-full border px-3 py-2 rounded" rows="3" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button type="submit" disabled={actionLoading} className="bg-blue-600 text-white px-3 py-1 rounded text-sm">{actionLoading ? 'Guardando...' : 'Guardar'}</button>
+                          <button type="button" onClick={cancelEdit} className="bg-gray-100 px-3 py-1 rounded text-sm">Cancelar</button>
+                        </div>
+                      </form>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto animate-fade-in">
-      <div className="glass-card rounded-2xl p-8 shadow-xl">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-white text-xl font-bold">B</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gradient">
-            {isLogin ? 'Bienvenido de nuevo' : 'Únete a BookHub'}
-          </h1>
-          <p className="text-gray-600 mt-2">
-            {isLogin ? 'Ingresa a tu cuenta' : 'Crea tu cuenta para comenzar'}
-          </p>
-        </div>
+    <div className="max-w-md mx-auto bg-white p-6 rounded shadow">
+      <h2 className="text-xl font-semibold mb-4">{isLogin ? 'Iniciar sesión' : 'Crear cuenta'}</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre completo
-              </label>
-              <input
-                type="text"
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none 
-                         focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500/30 
-                         transition-all duration-200"
-                placeholder="Tu nombre"
-                required
-              />
-            </div>
-          )}
+      {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
+      {success && <div className="text-green-500 text-sm mb-4">{success}</div>}
 
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {!isLogin && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
+            <label className="block text-sm font-medium mb-1">Nombre</label>
             <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none 
-                       focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500/30 
-                       transition-all duration-200"
-              placeholder="tu@email.com"
-              required
+              type="text"
+              value={formData.nombre}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              className="w-full border px-3 py-2 rounded"
+              required={!isLogin}
             />
           </div>
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none 
-                       focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500/30 
-                       transition-all duration-200"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full btn-primary py-4"
-          >
-            {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-primary-600 hover:text-primary-700 font-medium transition-colors"
-          >
-            {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
-          </button>
+        <div>
+          <label className="block text-sm font-medium mb-1">Email</label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className="w-full border px-3 py-2 rounded"
+            required
+          />
         </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Contraseña</label>
+          <input
+            type="password"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            className="w-full border px-3 py-2 rounded"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-2 rounded disabled:opacity-50"
+        >
+          {loading ? (isLogin ? 'Iniciando...' : 'Registrando...') : (isLogin ? 'Entrar' : 'Registrarse')}
+        </button>
+      </form>
+
+      <div className="mt-4 text-center">
+        <button
+          onClick={() => {
+            setIsLogin(!isLogin);
+            setFormData({ nombre: '', email: '', password: '' });
+            setError(null);
+            setSuccess(null);
+          }}
+          className="text-sm text-blue-600 underline"
+        >
+          {isLogin ? 'Crear una cuenta' : 'Ya tengo cuenta'}
+        </button>
       </div>
     </div>
   );

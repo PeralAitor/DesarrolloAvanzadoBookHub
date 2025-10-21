@@ -3,6 +3,7 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
+    "./src/styles/**/*.{css}" // <-- añadido para que compile global.css
   ],
   theme: {
     extend: {

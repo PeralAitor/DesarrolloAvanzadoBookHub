@@ -13,7 +13,8 @@
     "helmet": "^6.0.1",
     "express-rate-limit": "^6.7.0",
     "jsonwebtoken": "^9.0.0",
-    "http-proxy-middleware": "^2.0.6"
+    "http-proxy-middleware": "^2.0.6",
+    "winston": "^3.10.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"

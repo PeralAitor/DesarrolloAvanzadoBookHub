@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom'; // usar Routes/Route directamente
 import Header from './components/Header';
 import Home from './pages/Home';
 import Catalog from './pages/Catalog';
 import BookDetail from './pages/BookDetail';
 import UserProfile from './pages/UserProfile';
 import AdminPanel from './pages/AdminPanel';
-import './styles/global.css';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -14,39 +13,30 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Verificar autenticación al cargar la app
+    const saved = localStorage.getItem('user');
     const token = localStorage.getItem('token');
-    if (token) {
-      fetchUserProfile(token);
+    if (saved) {
+      try { setUser(JSON.parse(saved)); } catch { localStorage.removeItem('user'); }
     }
+    // opcional: si quieres validar token al arrancar, puedes fetchear perfil con token
   }, []);
 
-  const fetchUserProfile = async (token) => {
-    try {
-      const response = await fetch('/api/users/profile', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  };
-
+  // onLogin ahora puede recibir token
   const handleLogin = (userData, token) => {
     setUser(userData);
-    localStorage.setItem('token', token);
+    if (token) localStorage.setItem('token', token);
+    if (userData) localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/';
   };
 
   return (
-    <Router>
+    <>
       <div className="min-h-screen bg-gray-50">
         <Header 
           user={user} 
@@ -65,7 +55,7 @@ function App() {
                 onBooksUpdate={setBooks}
               />
             } />
-            <Route path="/book/:id" element={<BookDetail user={user} />} />
+            <Route path="/books/:id" element={<BookDetail user={user} />} />
             <Route path="/profile" element={
               <UserProfile user={user} onLogin={handleLogin} />
             } />
@@ -73,7 +63,7 @@ function App() {
           </Routes>
         </main>
       </div>
-    </Router>
+    </>
   );
 }
 
