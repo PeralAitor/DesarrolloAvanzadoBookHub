@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+import requests
 from datetime import datetime
 
 # Configuración simple de la base de datos
@@ -27,7 +28,7 @@ class BookDB(Base):
     editorial = Column(String(255))
     descripcion = Column(Text)
     portada_url = Column(String(500))
-    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    fecha_creacion = Column(DateTime)  # Sin default=datetime.utcnow
 
 # Crear tablas
 try:
@@ -55,6 +56,105 @@ def get_db():
     finally:
         db.close()
 
+# Función para buscar en Open Library
+def search_open_library(search: str = None, autor: str = None, genero: str = None):
+    try:
+        # Construir query para Open Library
+        query_parts = []
+        if search:
+            query_parts.append(search)
+        elif autor:
+            query_parts.append(f"author:\"{autor}\"")
+        elif genero:
+            query_parts.append(f"subject:\"{genero}\"")
+        else:
+            # Query por defecto para mostrar libros populares
+            query_parts.append("popular books")
+        
+        query = " ".join(query_parts)
+        
+        # Hacer petición a Open Library
+        response = requests.get(
+            f"https://openlibrary.org/search.json",
+            params={
+                'q': query,
+                'limit': 50,
+                'fields': 'key,title,author_name,isbn,first_publish_year,subject,publisher,cover_i'
+            },
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('docs', [])
+        else:
+            print(f"Error en Open Library: {response.status_code}")
+            return []
+            
+    except Exception as e:
+        print(f"Error conectando con Open Library: {e}")
+        return []
+
+# Función para guardar un libro de Open Library en la base de datos
+def save_open_library_book_to_db(db: Session, open_library_book: dict):
+    try:
+        # Extraer el ISBN (puede haber varios, tomamos el primero)
+        isbn = open_library_book.get('isbn', [''])[0] if open_library_book.get('isbn') else None
+        
+        # Verificar si el libro ya existe por ISBN
+        existing_book = None
+        if isbn:
+            existing_book = db.query(BookDB).filter(BookDB.isbn == isbn).first()
+        
+        # Si no existe por ISBN, verificar por título y autor
+        if not existing_book:
+            titulo = open_library_book.get('title', 'Título no disponible')
+            autor = ', '.join(open_library_book.get('author_name', [])) if open_library_book.get('author_name') else 'Autor desconocido'
+            existing_book = db.query(BookDB).filter(BookDB.titulo == titulo, BookDB.autor == autor).first()
+        
+        # Si ya existe, retornar el existente
+        if existing_book:
+            return existing_book
+        
+        # Obtener la fecha de publicación de Open Library y convertirla a datetime
+        first_publish_year = open_library_book.get('first_publish_year')
+        fecha_publicacion = None
+        
+        if first_publish_year:
+            try:
+                # Crear una fecha al 1 de enero del año de publicación
+                fecha_publicacion = datetime(year=first_publish_year, month=1, day=1)
+            except (ValueError, TypeError):
+                # Si hay error con la fecha, usar None y luego se asignará la fecha actual
+                fecha_publicacion = None
+        
+        # Si no se pudo obtener la fecha de publicación, usar la fecha actual
+        if not fecha_publicacion:
+            fecha_publicacion = datetime.utcnow()
+        
+        # Crear nuevo libro
+        new_book = BookDB(
+            titulo=open_library_book.get('title', 'Título no disponible'),
+            autor=', '.join(open_library_book.get('author_name', [])) if open_library_book.get('author_name') else 'Autor desconocido',
+            isbn=isbn,
+            anio_publicacion=first_publish_year,
+            genero=', '.join(open_library_book.get('subject', [])[:3]) if open_library_book.get('subject') else 'General',
+            editorial=', '.join(open_library_book.get('publisher', [])[:3]) if open_library_book.get('publisher') else 'Editorial desconocida',
+            descripcion=f"Libro {open_library_book.get('title', '')} por {', '.join(open_library_book.get('author_name', [])) if open_library_book.get('author_name') else 'autor desconocido'}.",
+            portada_url=f"https://covers.openlibrary.org/b/id/{open_library_book.get('cover_i')}-M.jpg" if open_library_book.get('cover_i') else None,
+            fecha_creacion=fecha_publicacion  # Usar la fecha de publicación en lugar de fecha actual
+        )
+        
+        db.add(new_book)
+        db.commit()
+        db.refresh(new_book)
+        return new_book
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Error guardando libro en la base de datos: {e}")
+        return None
+
 @app.get("/api/v1/books")
 def get_books(
     skip: int = 0,
@@ -66,29 +166,45 @@ def get_books(
     anio_max: Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
-    query = db.query(BookDB)
-    
-    if search:
-        query = query.filter(
-            BookDB.titulo.ilike(f"%{search}%") | 
-            BookDB.autor.ilike(f"%{search}%") |
-            BookDB.descripcion.ilike(f"%{search}%")
-        )
-    
-    if genero:
-        query = query.filter(BookDB.genero.ilike(f"%{genero}%"))
-    
-    if autor:
-        query = query.filter(BookDB.autor.ilike(f"%{autor}%"))
-    
-    if anio_min:
-        query = query.filter(BookDB.anio_publicacion >= anio_min)
-    
-    if anio_max:
-        query = query.filter(BookDB.anio_publicacion <= anio_max)
-    
-    books = query.offset(skip).limit(limit).all()
-    return books
+    try:
+        # Primero, intentar buscar en Open Library si hay parámetros de búsqueda
+        if search or autor or genero:
+            open_library_books = search_open_library(search, autor, genero)
+            
+            # Guardar cada libro de Open Library en la base de datos local
+            for open_book in open_library_books:
+                save_open_library_book_to_db(db, open_book)
+        
+        # Ahora, buscar en la base de datos local
+        query = db.query(BookDB)
+        
+        if search:
+            query = query.filter(
+                BookDB.titulo.ilike(f"%{search}%") | 
+                BookDB.autor.ilike(f"%{search}%") |
+                BookDB.descripcion.ilike(f"%{search}%")
+            )
+        
+        if genero:
+            query = query.filter(BookDB.genero.ilike(f"%{genero}%"))
+        
+        if autor:
+            query = query.filter(BookDB.autor.ilike(f"%{autor}%"))
+        
+        if anio_min:
+            query = query.filter(BookDB.anio_publicacion >= anio_min)
+        
+        if anio_max:
+            query = query.filter(BookDB.anio_publicacion <= anio_max)
+        
+        books = query.offset(skip).limit(limit).all()
+        return books
+            
+    except Exception as e:
+        print(f"Error en get_books: {e}")
+        # Fallback a base de datos en caso de error
+        books = db.query(BookDB).offset(skip).limit(limit).all()
+        return books
 
 @app.get("/api/v1/books/{book_id}")
 def get_book(book_id: int, db: Session = Depends(get_db)):

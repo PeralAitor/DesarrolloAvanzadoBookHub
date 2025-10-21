@@ -20,20 +20,18 @@ const Catalog = ({ books, searchTerm, onBooksUpdate }) => {
   const fetchBooks = async () => {
     setLoading(true);
     try {
-      // Convertir searchParams a objeto y mapear parámetros si es necesario
+      // Convertir searchParams a objeto
       const paramsObj = Object.fromEntries(searchParams.entries());
       
-      // Construir query string correcto
+      // Construir query string con nombres correctos
       const queryParams = new URLSearchParams();
       
-      // Mapear los nombres de parámetros si es necesario
+      // Mapear parámetros a los nombres que espera el backend
       Object.keys(paramsObj).forEach(key => {
-        if (key === 'año_min') {
-          queryParams.set('anio_min', paramsObj[key]);
-        } else if (key === 'año_max') {
-          queryParams.set('anio_max', paramsObj[key]);
-        } else {
-          queryParams.set(key, paramsObj[key]);
+        const value = paramsObj[key];
+        if (value) {
+          // Usar los nombres correctos que espera el backend
+          queryParams.set(key, value);
         }
       });
 
@@ -53,7 +51,7 @@ const Catalog = ({ books, searchTerm, onBooksUpdate }) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     
-    // Actualizar URL con los filtros - usando nombres correctos
+    // Actualizar URL con los filtros usando nombres correctos
     const params = new URLSearchParams();
     Object.entries(newFilters).forEach(([k, v]) => {
       if (v) params.set(k, v);

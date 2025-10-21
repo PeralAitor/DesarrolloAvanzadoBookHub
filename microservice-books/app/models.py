@@ -15,7 +15,7 @@ class BookDB(Base):
     editorial = Column(String(255))
     descripcion = Column(Text)
     portada_url = Column(String(500))
-    fecha_creacion = Column(DateTime)
+    fecha_creacion = Column(DateTime)  # Sin valor por defecto
 
 class AuthorDB(Base):
     __tablename__ = "autores"
