@@ -7,30 +7,46 @@ const Catalog = ({ books, searchTerm, onBooksUpdate }) => {
   const [filters, setFilters] = useState({
     genero: '',
     autor: '',
-    anio_min: '',  // Cambiado de año_min a anio_min
-    anio_max: '',  // Cambiado de año_max a anio_max
+    anio_min: '',
+    anio_max: '',
     rating_min: ''
   });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchBooks();
+    // Si no hay parámetros de búsqueda, cargar libros iniciales
+    if (searchParams.toString() === '') {
+      fetchInitialBooks();
+    } else {
+      fetchBooks();
+    }
   }, [searchParams]);
+
+  // Función para cargar libros iniciales
+  const fetchInitialBooks = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/books?limit=50');
+      if (response.ok) {
+        const booksData = await response.json();
+        onBooksUpdate(booksData);
+      }
+    } catch (error) {
+      console.error('Error fetching initial books:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchBooks = async () => {
     setLoading(true);
     try {
-      // Convertir searchParams a objeto
       const paramsObj = Object.fromEntries(searchParams.entries());
-      
-      // Construir query string con nombres correctos
       const queryParams = new URLSearchParams();
       
-      // Mapear parámetros a los nombres que espera el backend
       Object.keys(paramsObj).forEach(key => {
         const value = paramsObj[key];
         if (value) {
-          // Usar los nombres correctos que espera el backend
           queryParams.set(key, value);
         }
       });

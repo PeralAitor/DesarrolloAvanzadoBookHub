@@ -39,7 +39,6 @@ const UserProfile = ({ user, onLogin }) => {
       try {
         const token = localStorage.getItem('token');
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        // gateway supports /api/reviews?user=...
         const res = await fetch(`/api/reviews?user=${encodeURIComponent(user._id || user.id || user.email)}`, { headers });
         if (!res.ok) {
           const body = await res.json().catch(()=>({}));
@@ -47,9 +46,7 @@ const UserProfile = ({ user, onLogin }) => {
           return;
         }
         const body = await res.json();
-        // body may be array or { reviews: [...] }
         const reviewsArray = Array.isArray(body) ? body : (Array.isArray(body.reviews) ? body.reviews : []);
-        // normalize and enrich titles
         const normalized = await Promise.all(reviewsArray.map(async (r) => {
           const nr = normalizeReview(r);
           if (nr.bookTitle) return nr;
@@ -105,7 +102,6 @@ const UserProfile = ({ user, onLogin }) => {
         return;
       }
       const updated = normalizeReview(data);
-      // keep bookTitle if we had it
       const prev = recentReviews.find(r => String(r.id) === String(updated.id)) || {};
       if (!updated.bookTitle && prev.bookTitle) updated.bookTitle = prev.bookTitle;
       setRecentReviews(prevArr => prevArr.map(r => String(r.id) === String(updated.id) ? updated : r));
