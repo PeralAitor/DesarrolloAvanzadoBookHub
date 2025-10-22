@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
@@ -8,12 +8,32 @@ from typing import List, Optional
 import os
 import requests
 from datetime import datetime
+import time
 
 # Configuración simple de la base de datos
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://bookhub_user:bookhub_password@mysql:3306/bookhub")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+def wait_for_db():
+    """Espera a que la base de datos esté disponible"""
+    max_retries = 30
+    retry_interval = 2  # segundos
+    
+    for attempt in range(max_retries):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            print("✅ Base de datos conectada exitosamente")
+            return True
+        except Exception as e:
+            print(f"⚠️ Intento {attempt+1}/{max_retries}: Base de datos no disponible - {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_interval)
+    
+    print("❌ No se pudo conectar a la base de datos después de varios intentos")
+    return False
 
 # Modelo simple
 class BookDB(Base):
@@ -30,12 +50,15 @@ class BookDB(Base):
     portada_url = Column(String(500))
     fecha_creacion = Column(DateTime)  # Sin default=datetime.utcnow
 
-# Crear tablas
-try:
-    Base.metadata.create_all(bind=engine)
-    print("✅ Tablas creadas exitosamente")
-except Exception as e:
-    print(f"⚠️ Error creando tablas: {e}")
+# Esperar a la base de datos y luego crear tablas
+if wait_for_db():
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✅ Tablas creadas exitosamente")
+    except Exception as e:
+        print(f"⚠️ Error creando tablas: {e}")
+else:
+    print("❌ No se pudieron crear las tablas - base de datos no disponible")
 
 app = FastAPI(title="BookHub Books Service", version="1.0.0")
 
@@ -217,7 +240,7 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
 def health_check():
     try:
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         return {"status": "healthy", "service": "books", "database": "connected"}
     except Exception as e:
         return {"status": "unhealthy", "service": "books", "database": "disconnected", "error": str(e)}
