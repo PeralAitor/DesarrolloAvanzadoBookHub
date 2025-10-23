@@ -505,6 +505,121 @@ app.use('/api/auth', createProxyMiddleware({
   }
 }));
 
+/**
+ * @swagger
+ * /api/users/profile:
+ *   get:
+ *     summary: Obtener perfil del usuario autenticado
+ *     description: Retorna la información del perfil del usuario autenticado
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Perfil obtenido exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
+
+/**
+ * @swagger
+ * /api/users/profile:
+ *   put:
+ *     summary: Actualizar perfil del usuario
+ *     description: Permite al usuario actualizar su información de perfil
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *                 description: Nuevo nombre del usuario
+ *                 example: "Juan Pérez Updated"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Nuevo email del usuario
+ *                 example: "nuevoemail@ejemplo.com"
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: Contraseña actual (requerida para cambiar contraseña)
+ *                 example: "password123"
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 minLength: 6
+ *                 description: Nueva contraseña (mínimo 6 caracteres)
+ *                 example: "newpassword123"
+ *     responses:
+ *       200:
+ *         description: Perfil actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Perfil actualizado exitosamente"
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Error en los datos proporcionados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ */
+app.use('/api/users', createProxyMiddleware({
+  target: AUTH_TARGET,
+  changeOrigin: true,
+  logLevel: 'debug',
+  proxyTimeout: 10000,
+  timeout: 20000,
+  onProxyReq: (proxyReq, req, res) => {
+    logger.info('Proxy -> auth-service request (users)', { method: req.method, url: req.url, ip: req.ip });
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    logger.info('Proxy <- auth-service response (users)', { statusCode: proxyRes.statusCode, url: req.url });
+  },
+  onError: (err, req, res) => {
+    logger.error('Error en servicio de autenticación (users)', { error: err.message, url: req.url });
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Servicio de autenticación no disponible' });
+    } else {
+      try { res.end(); } catch(e) {}
+    }
+  }
+}));
+
 // =============================================
 // DOCUMENTACIÓN Y PROXY PARA SERVICIO DE BOOKS
 // =============================================

@@ -184,6 +184,94 @@ app.get('/api/auth/verify', async (req, res) => {
   }
 });
 
+// Actualizar perfil de usuario
+app.put('/api/users/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Token requerido' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const { nombre, email, currentPassword, newPassword } = req.body;
+
+    // Actualizar campos básicos
+    if (nombre) user.nombre = nombre;
+    if (email) user.email = email;
+
+    // Si se proporciona una nueva contraseña, verificar la contraseña actual
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'La contraseña actual es requerida para cambiar la contraseña' });
+      }
+
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
+      }
+
+      user.password = await bcrypt.hash(newPassword, 12);
+    }
+
+    await user.save();
+
+    console.log(`✅ Perfil actualizado para usuario: ${user._id}`);
+
+    res.json({
+      message: 'Perfil actualizado exitosamente',
+      user: {
+        id: user._id,
+        nombre: user.nombre,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('💥 Error actualizando perfil:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Obtener perfil de usuario
+app.get('/api/users/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Token requerido' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json({
+      user: {
+        id: user._id,
+        nombre: user.nombre,
+        email: user.email,
+        role: user.role,
+        fechaRegistro: user.fechaRegistro
+      }
+    });
+  } catch (error) {
+    console.error('💥 Error obteniendo perfil:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 const PORT = process.env.PORT || 3003;
 app.listen(PORT, () => {
   console.log(`✅ Auth Service running on port ${PORT}`);
