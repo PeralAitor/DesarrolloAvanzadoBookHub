@@ -135,89 +135,159 @@ const BookDetail = ({ user }) => {
   const editorial = getBookField(book, ['editorial', 'publisher']) || 'Editorial no disponible';
   const isbn = getBookField(book, ['isbn']) || 'ISBN no disponible';
 
+  // Generar color de gradiente basado en el título
+  const generateGradient = (text) => {
+    const colors = [
+      'from-blue-500 to-purple-600',
+      'from-green-500 to-teal-600',
+      'from-orange-500 to-red-600',
+      'from-purple-500 to-pink-600',
+      'from-teal-500 to-blue-600',
+      'from-red-500 to-orange-600'
+    ];
+    const index = text.length % colors.length;
+    return colors[index];
+  };
+
+  const gradientClass = generateGradient(titulo);
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Book Header */}
-      <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">{titulo}</h1>
-          <p className="text-xl text-gray-600 mb-8">por {autor}</p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            <div className="bg-blue-50 rounded-xl p-6 text-center">
-              <div className="text-3xl font-bold text-blue-600">{averageRating}</div>
-              <div className="text-sm text-gray-600">Rating Promedio</div>
-            </div>
-            <div className="bg-green-50 rounded-xl p-6 text-center">
-              <div className="text-3xl font-bold text-green-600">{reviews.length}</div>
-              <div className="text-sm text-gray-600">Número de Reseñas</div>
-            </div>
-            <div className="bg-yellow-50 rounded-xl p-6 text-center">
-              <div className="text-3xl font-bold text-yellow-600">{anioPublicacion}</div>
-              <div className="text-sm text-gray-600">Año de Publicación</div>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Book Header - Rediseñado */}
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 border border-gray-100">
+        <div className={`bg-gradient-to-br ${gradientClass} p-8 text-white`}>
+          <div className="max-w-4xl mx-auto text-center">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 drop-shadow-md">{titulo}</h1>
+            <p className="text-xl md:text-2xl opacity-90 mb-6">por {autor}</p>
+            
+            <div className="flex flex-wrap justify-center gap-4 mb-2">
+              <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium">
+                {genero}
+              </span>
+              <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium">
+                {anioPublicacion}
+              </span>
+              <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium">
+                {editorial}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Información adicional del libro */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Detalles del Libro</h3>
-            <div className="space-y-3">
-              <div className="flex items-center">
-                <span className="text-gray-500 w-24">Editorial:</span>
-                <span className="text-gray-700 font-medium">{editorial}</span>
+        <div className="p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {/* Información Principal */}
+            <div className="lg:col-span-2">
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">Descripción</h2>
+                <p className="text-gray-600 leading-relaxed text-lg">
+                  {descripcion || 'No hay descripción disponible para este libro.'}
+                </p>
               </div>
-              <div className="flex items-center">
-                <span className="text-gray-500 w-24">ISBN:</span>
-                <span className="text-gray-700 font-mono">{isbn}</span>
-              </div>
-              <div className="flex items-center">
-                <span className="text-gray-500 w-24">Género:</span>
-                <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
-                  {genero}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <span className="text-gray-500 w-24">Año:</span>
-                <span className="text-gray-700 font-medium">{anioPublicacion}</span>
+
+              {/* Detalles del Libro */}
+              <div className="bg-gray-50 rounded-xl p-6">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4">Detalles del Libro</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center p-3 bg-white rounded-lg">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                      <span className="text-blue-600 font-bold">📚</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Editorial</p>
+                      <p className="font-medium text-gray-800">{editorial}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center p-3 bg-white rounded-lg">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                      <span className="text-green-600 font-bold">🔢</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">ISBN</p>
+                      <p className="font-mono font-medium text-gray-800">{isbn}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center p-3 bg-white rounded-lg">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                      <span className="text-purple-600 font-bold">🏷️</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Género</p>
+                      <p className="font-medium text-gray-800">{genero}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center p-3 bg-white rounded-lg">
+                    <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
+                      <span className="text-yellow-600 font-bold">📅</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Año de Publicación</p>
+                      <p className="font-medium text-gray-800">{anioPublicacion}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Estadísticas</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Rating promedio:</span>
-                <span className="text-blue-600 font-bold text-lg">{averageRating}/5</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Total de reseñas:</span>
-                <span className="text-green-600 font-bold text-lg">{reviews.length}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Valoración:</span>
-                <div className="flex items-center space-x-1 text-yellow-500 text-lg">
-                  {'★'.repeat(Math.round(averageRating))}
-                  {'☆'.repeat(5 - Math.round(averageRating))}
+
+            {/* Estadísticas y Rating */}
+            <div className="lg:col-span-1">
+              <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-6 sticky top-8">
+                <h3 className="text-xl font-semibold text-gray-800 mb-6 text-center">Estadísticas</h3>
+                
+                <div className="space-y-6">
+                  {/* Rating Promedio */}
+                  <div className="text-center">
+                    <div className="inline-flex items-baseline mb-2">
+                      <span className="text-5xl font-bold text-gray-800 mr-2">{averageRating}</span>
+                      <span className="text-gray-500 text-lg">/5</span>
+                    </div>
+                    <div className="flex justify-center mb-2 text-2xl text-yellow-500">
+                      {'★'.repeat(Math.round(averageRating))}
+                      {'☆'.repeat(5 - Math.round(averageRating))}
+                    </div>
+                    <p className="text-sm text-gray-500">Rating promedio</p>
+                  </div>
+
+                  {/* Número de Reseñas */}
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-3xl font-bold text-blue-600 mb-1">{reviews.length}</div>
+                    <p className="text-sm text-blue-700">Reseñas totales</p>
+                  </div>
+
+                  {/* Distribución de Ratings */}
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h4 className="font-semibold text-gray-700 mb-3 text-sm">Distribución de ratings</h4>
+                    <div className="space-y-2">
+                      {[5,4,3,2,1].map(stars => {
+                        const count = reviews.filter(r => (r.calificación || r.rating || 0) === stars).length;
+                        const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                        return (
+                          <div key={stars} className="flex items-center text-sm">
+                            <span className="w-8 text-yellow-500">{stars}★</span>
+                            <div className="flex-1 mx-2 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-yellow-500 h-2 rounded-full" 
+                                style={{ width: `${percentage}%` }}
+                              ></div>
+                            </div>
+                            <span className="w-8 text-gray-500 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Book Description */}
-        {descripcion && (
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="text-2xl font-semibold text-gray-800 mb-4">Descripción</h3>
-            <p className="text-gray-600 leading-relaxed text-lg">{descripcion}</p>
-          </div>
-        )}
       </div>
 
+      {/* Reviews Section - Mantenemos el mismo diseño pero mejoramos el espaciado */}
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Reviews Section */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-6">
@@ -272,7 +342,7 @@ const BookDetail = ({ user }) => {
           </div>
         </div>
 
-        {/* Add Review Section */}
+        {/* Add Review Section - Mantenemos igual */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-8">
             <h3 className="text-xl font-semibold text-gray-800 mb-6">Añadir Reseña</h3>
