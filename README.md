@@ -31,14 +31,3 @@ Frontend: http://localhost:5173
 📡 Consultar la API
 Documentación
 Visita http://localhost:3000/api-docs para ver todos los endpoints disponibles con Swagger UI.
-
-Endpoints principales:
-GET /api/books - Listar libros
-
-GET /api/books/{id} - Obtener libro específico
-
-GET /api/reviews/book/{bookId} - Reseñas de un libro
-
-POST /api/auth/register - Registrar usuario
-
-POST /api/auth/login - Iniciar sesión
