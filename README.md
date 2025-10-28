@@ -52,8 +52,9 @@ Usando Ngrok (Para compartir con compañeros)
 - Descargar Ngrok desde https://ngrok.com/download
 
 **Ejecutar en terminal**:
-
-ngrok http 80
+```bash
+    ngrok http 80
+```
 Compartir la URL que aparece en "Forwarding"
 
 URLs públicas generadas
