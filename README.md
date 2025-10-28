@@ -55,7 +55,7 @@ Usando Ngrok (Para compartir con compañeros)
 ```bash
     ngrok http 80
 ```
-Compartir la URL que aparece en "Forwarding"
+Compartir la URL que aparece en "Forwarding", el proyecto tiene que estar levantado antes de utilizar el comando.
 
 URLs públicas generadas
 - **🌐 Frontend público**: https://xxxx-xxxx.ngrok-free.dev
