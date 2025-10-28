@@ -1,33 +1,63 @@
-BookHub - Plataforma de Libros
-📖 Descripción
+# BookHub - Plataforma de Libros
+
+## 📖 Descripción
 BookHub es una aplicación web para explorar libros y gestionar reseñas, construida con arquitectura de microservicios.
 
-🏗️ Estructura
-Frontend: Interfaz web (React) en puerto 5173
+## 🏗️ Estructura
 
-API Gateway: (Node.js) Punto de entrada único en puerto 3000
+### Frontend
+- **Tecnología**: React
+- **Puerto**: 5173
 
-Microservicios:
+### API Gateway
+- **Tecnología**: Node.js
+- **Puerto**: 3000
+- **Función**: Punto de entrada único
 
-Books: Gestión de libros (Python + FastAPI + MySQL + Open Library API)
+### Microservicios
+- **Books**: Gestión de libros (Python + FastAPI + MySQL + Open Library API)
+- **Reviews**: Gestión de reseñas (Node.js + MongoDB)
+- **Auth**: Autenticación de usuarios (Node.js + MongoDB)
 
-Reviews: Gestión de reseñas (Node.js + MongoDB)
-
-Auth: Autenticación de usuarios (Node.js + MongoDB)
-
-🔄 Flujo de Datos
+## 🔄 Flujo de Datos
 Frontend → API Gateway → Microservicios
+
 El frontend solo se comunica con el API Gateway, que redirige las peticiones al microservicio correspondiente.
 
-🚀 Inicio Rápido
+## 🚀 Inicio Rápido Local
 
-Docker tiene que estar runeando (Teniendo abierto el docker desktop sirve)
+### Prerrequisitos
+- Docker Desktop ejecutándose
+- Git instalado
 
-1. Ejecutar el proyecto (A la altura del archivo docker-compose.yml)
-docker-compose up --build
-2. Acceder a la aplicación
-Frontend: http://localhost:5173
+### 1. Clonar y ejecutar el proyecto
 
-📡 Consultar la API
-Documentación
+```bash
+# Clonar el repositorio
+git clone [url-del-repositorio]
+cd BookHub
+
+# Ejecutar todos los servicios (desde la carpeta con docker-compose.yml)
+docker-compose up --build 
+```
+
+### 2. Acceder a la aplicación localmente
+- **Frontend (via Nginx)**: http://localhost
+- **Frontend (directo)**: http://localhost:5173
+- **API Gateway**: http://localhost:3000
+
+## Acceso Público desde Internet
+Usando Ngrok (Para compartir con compañeros)
+
+- Descargar Ngrok desde https://ngrok.com/download
+
+Ejecutar en terminal:
+
+ngrok http 80
+Compartir la URL que aparece en "Forwarding"
+
+URLs públicas generadas
+- **🌐 Frontend público**: https://xxxx-xxxx.ngrok-free.dev
+
+## 📡 Consultar la API
 Visita http://localhost:3000/api-docs para ver todos los endpoints disponibles con Swagger UI.
