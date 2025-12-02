@@ -50,7 +50,7 @@ cd BookHub
 cd src
 
 # Ejecutar todos los servicios (desde la carpeta con docker-compose.yml)
-docker-compose up --build 
+docker compose up --build 
 ```
 
 ### 2. Acceder a la aplicación localmente
