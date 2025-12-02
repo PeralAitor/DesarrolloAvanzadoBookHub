@@ -3,30 +3,41 @@
 ## 📖 Descripción
 BookHub es una aplicación web para explorar libros y gestionar reseñas, construida con arquitectura de microservicios.
 
-## 🏗️ Estructura
+## Software que se necesita instalar
 
-### Frontend
-- **Tecnología**: React
-- **Puerto**: 5173
+### Prerequisitos esenciales
+- **Docker Desktop (incluye Docker Engine y Docker Compose)**: Descargar Docker Desktop
+- **Git (para clonar el repositorio)**: Descargar Git
 
-### API Gateway
-- **Tecnología**: Node.js
-- **Puerto**: 3000
-- **Función**: Punto de entrada único
+## Servicios que se arrancan automaticamente
+Al ejecutar Docker Compose, se levantan 8 servicios en contenedores independientes:
 
-### Microservicios
-- **Books**: Gestión de libros (Python + FastAPI + MySQL + Open Library API)
-- **Reviews**: Gestión de reseñas (Node.js + MongoDB)
-- **Auth**: Autenticación de usuarios (Node.js + MongoDB)
+- frontend --> React + Nginx --> 5173 -->	Interfaz web del usuario
+- api-gateway	--> Node.js + Express	--> 3000 --> Punto de entrada único de todas las APIs
+- books-service --> Python + FastAPI --> 3001 --> Microservicio de catálogo de libros
+- reviews-service	--> Node.js + Express --> 3002 --> Microservicio de reseñas y comentarios
+- auth-service --> Node.js + Express --> 3003 --> Microservicio de autenticación
+- mysql --> MySQL 8.0	--> 3306 --> Base de datos relacional para libros
+- mongodb --> MongoDB	6.0 --> 27017 --> Base de datos NoSQL para usuarios/reseñas
+- nginx --> Nginx	--> 80 --> Proxy inverso para servir el frontend
 
-## 🔄 Flujo de Datos
-Frontend → API Gateway → Microservicios
+## Dependencias gestionadas por Docker Compose
+No necesitas instalar ninguna dependencia manualmente. Cada contenedor incluye:
 
-El frontend solo se comunica con el API Gateway, que redirige las peticiones al microservicio correspondiente.
+- Node.js 18+ para: api-gateway, reviews-service, auth-service
 
-## 🚀 Inicio Rápido Local
+- Python 3.9+ con FastAPI para: books-service
 
-### Prerrequisitos
+- MySQL 8.0 con base de datos preconfigurada
+
+- MongoDB 6.0 con colecciones inicializadas
+
+- Todas las dependencias de npm/pip instaladas automáticamente
+
+Las dependencias se instalan durante la construcción de las imágenes Docker (docker-compose build).
+
+## Como arrancar toda la aplicación
+### Prerequisitos
 - Docker Desktop ejecutándose
 - Git instalado
 
@@ -36,6 +47,7 @@ El frontend solo se comunica con el API Gateway, que redirige las peticiones al 
 # Clonar el repositorio
 git clone [url-del-repositorio]
 cd BookHub
+cd src
 
 # Ejecutar todos los servicios (desde la carpeta con docker-compose.yml)
 docker-compose up --build 
@@ -46,19 +58,6 @@ docker-compose up --build
 - **Frontend (directo)**: http://localhost:5173
 - **API Gateway**: http://localhost:3000
 
-## Acceso Público desde Internet
-Usando Ngrok (Para compartir con compañeros)
-
-- Descargar Ngrok desde https://ngrok.com/download
-
-**Ejecutar en terminal**:
-```bash
-    ngrok http 80
-```
-Compartir la URL que aparece en "Forwarding", el proyecto tiene que estar levantado antes de utilizar el comando.
-
-URLs públicas generadas
-- **🌐 Frontend público**: https://xxxx-xxxx.ngrok-free.dev
 
 ## 📡 Consultar la API
 Visita http://localhost:3000/api-docs para ver todos los endpoints disponibles con Swagger UI.
